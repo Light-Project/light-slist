@@ -39,7 +39,7 @@ int main(void)
     }
 
     slist_for_each_entry(node, &demo_list, list)
-        printf("  %04u: 0x%016x\n", node->num, node->data);
+        printf("  %04u: 0x%016lx\n", node->num, node->data);
 
     printf("Deletion All Node...\n");
 error:
