@@ -15,7 +15,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: make
       run:  make
+    - name: selftest
+      run:  ./examples/selftest
     - name: simple
-      run:  ./simple
+      run:  ./examples/simple
     - name: make clean
       run:  make clean
