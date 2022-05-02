@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 typedef struct slist_head {
     struct slist_head *next;
 } slist_t;
@@ -31,6 +34,17 @@ typedef struct slist_head {
     _ptr ? container_of(_ptr, type, member) : NULL;     \
 })
 
+#ifndef POISON_OFFSET
+# define POISON_OFFSET 0
+#endif
+
+#define POISON_SLIST ((void *) POISON_OFFSET + 0x10)
+
+#ifdef DEBUG_SLIST
+extern bool slist_debug_add_check(struct slist_head *node, struct slist_head *new);
+extern bool slist_debug_del_check(struct slist_head *node);
+#endif
+
 /**
  * slist_head_init - initialize a slist_head structure.
  * @head: slist_head structure to be initialized.
@@ -47,6 +61,10 @@ static inline void slist_head_init(struct slist_head *head)
  */
 static inline void slist_add(struct slist_head *node, struct slist_head *new)
 {
+#ifdef DEBUG_SLIST
+    if (unlikely(!slist_debug_add_check(node, new)))
+        return;
+#endif
     new->next = node->next;
     node->next = new;
 }
@@ -69,7 +87,7 @@ static inline void slist_del(struct slist_head *head, struct slist_head *node)
         walk = walk->next;
 
     walk->next = node->next;
-    node->next = NULL;
+    node->next = POISON_SLIST;
 }
 
 /**
@@ -106,6 +124,16 @@ static inline bool slist_check_first(struct slist_head *head, struct slist_head 
 static inline bool slist_check_next(struct slist_head *node)
 {
     return node->next;
+}
+
+/**
+ * slist_check_another - check whether has another node.
+ * @head: slist head to check.
+ * @node: the unique node.
+ */
+static inline bool slist_check_another(const struct slist_head *head, const struct slist_head *node)
+{
+    return head->next == node && node->next == NULL;
 }
 
 /**
@@ -157,7 +185,7 @@ static inline bool slist_check_next(struct slist_head *node)
     for ((pos) = (pos)->next; (pos); (pos) = (pos)->next)
 
 /**
- * list_for_each_safe - iterate over a slist safe against removal of slist entry.
+ * slist_for_each_safe - iterate over a slist safe against removal of slist entry.
  * @pos: the &struct slist_head to use as a loop cursor.
  * @tmp: another slist_head to use as temporary storage.
  * @head: the head for your slist.
